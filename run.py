@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from models.user import User
+from models.director import Director
 
 app = FastAPI()
 
@@ -25,3 +26,17 @@ async def get_movie_with_isan(isan: str):
 @app.get("/director/{id}/movie")
 async def get_author_books(id: int, category: str, order: str = "asc"):
     return {"query parameter": order + category + str(id)}
+
+
+@app.patch("/director/name")
+async def patch_director_name(name: str = Body(..., embed=True)):
+    # Embed permite enviar el contenido en json (best practice).
+    # En caso contrario hay que enviar el parámetro como texto plano
+    return {"name in body": name}
+
+
+@app.post("/user/director")
+async def post_user_and_director(user: User, director: Director):
+    # Hay que proporcionar los parametros con su key
+    # {"author": {...}, "director": {...}}
+    return {"user": user, "director": director}
