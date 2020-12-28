@@ -1,26 +1,41 @@
 # -*- coding: utf-8 -*-
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Header, File
 from models.user import User
 from models.director import Director
+from models.movie import Movie
+from starlette.status import HTTP_201_CREATED
+from starlette.responses import Response
 
 app = FastAPI()
 
 
-@app.post("/user")
+@app.post("/user", status_code=HTTP_201_CREATED)
 async def post_user(user: User):
     return {"request body": user}
 
 
 # Se proporciona el valor como parámetro tras la ?
 @app.get("/user")
-async def get_user_validation(password: str):
-    return {"query parameter": password}
+async def get_user_validation(password: str, x_custom: str = Header("default")):
+    return {"query parameter": password, "request custom header": x_custom}
 
 
 # En llaves porque es un parámetro variable. Aparece en la url tras una /
-@app.get("/movie/{isan}")
+@app.get("/movie/{isan}", response_model=Movie, response_model_exclude=["director"])
 async def get_movie_with_isan(isan: str):
-    return {"query changable parameter": isan}
+    director_dict = {
+        "name": "director1",
+        "movies": ["movie1", "movie2"],
+    }
+    director1 = Director(**director_dict)
+    movie_dict = {
+        "isan": "isan2",
+        "name": "movie1",
+        "director": director1,
+        "year": 2019
+    }
+    movie = Movie(**movie_dict)
+    return movie
 
 
 @app.get("/director/{id}/movie")
@@ -40,3 +55,11 @@ async def post_user_and_director(user: User, director: Director):
     # Hay que proporcionar los parametros con su key
     # {"author": {...}, "director": {...}}
     return {"user": user, "director": director}
+
+
+@app.post("/user/photo")
+async def upload_user_photo(response: Response, profile_photo: bytes = File(...)):
+    # Headers solo pueden ser strings
+    response.headers["x-file-size"] = str(len(profile_photo))
+    response.set_cookie(key="cookie-api", value="test")
+    return {"file size": len(profile_photo)}
