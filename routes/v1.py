@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
-from fastapi import FastAPI, Body, Header, File
+from fastapi import FastAPI, Body, Header, File, Depends, HTTPException
 from models.user import User
 from models.director import Director
 from models.movie import Movie
-from starlette.status import HTTP_201_CREATED
+from models.jwt_user import JWTUser
+from starlette.status import HTTP_201_CREATED, HTTP_401_UNAUTHORIZED
 from starlette.responses import Response
+from fastapi.security import OAuth2PasswordRequestForm
+from utils.security import authenticate_user, create_jwt_token, check_jwt_token
 
 app_v1 = FastAPI(root_path="/v1")
 
 
 @app_v1.post("/user", status_code=HTTP_201_CREATED)
-async def post_user(user: User):
+async def post_user(user: User, jwt: bool = Depends(check_jwt_token)):
     return {"request body": user}
 
 
 # Se proporciona el valor como parámetro tras la ?
 @app_v1.get("/user")
-async def get_user_validation(password: str, x_custom: str = Header("default")):
+async def get_user_validation(password: str, x_custom: str = Header("default"),):
     return {"query parameter": password, "request custom header": x_custom}
 
 
@@ -63,3 +66,13 @@ async def upload_user_photo(response: Response, profile_photo: bytes = File(...)
     response.headers["x-file-size"] = str(len(profile_photo))
     response.set_cookie(key="cookie-api", value="test")
     return {"file size": len(profile_photo)}
+
+
+@app_v1.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    jwt_user = JWTUser(username=form_data.username, password=form_data.password, role="admin")
+    authorized = authenticate_user(user=jwt_user)
+    if not authorized:
+        raise HTTPException(HTTP_401_UNAUTHORIZED)
+    jwt_token = create_jwt_token(user=jwt_user)
+    return {"token": jwt_token}
